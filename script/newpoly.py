@@ -3,13 +3,11 @@ import numpy as np
 from pathlib import Path
 
 def find_cooccurring_genes():
-    # Input file paths
     base = Path(r"C:\Users\jillb\OneDrive - UBC\CONS 503A\Assignment")
     high_fst_file = base / "vcf_analysis/fst_results/high_fst_regions.csv"
     gff_file = base / "SalmonAnnotations.gff"
     output_file = base / "vcf_analysis/fst_results/cooccurring_genes.gff"
 
-    # Load high FST regions and add debug info
     print("Loading FST data...")
     fst_df = pd.read_csv(high_fst_file)
     print("\nFST file head:")
@@ -21,7 +19,6 @@ def find_cooccurring_genes():
     print("\nNumber of significant windows:", len(significant_windows))
     print("Chromosome names in FST data:", fst_df['CHROM'].unique())
 
-    # Dictionary to store genes by chromosome
     genes_by_chr = {}
 
     # Debug: Check GFF chromosome names

@@ -7,7 +7,7 @@ def analyze_clusters(thr=0.1):
     base = Path(r"C:\Users\jillb\OneDrive - UBC\CONS 503A\Assignment")
     df = pd.read_csv(base / "vcf_analysis/fst_results/high_fst_regions.csv")
     
-    # 查找连续高FST区域
+    # high fst areas
     clust = []
     for chr in df['CHROM'].unique():
         d = df[(df['CHROM'] == chr) & (df['WEIGHTED_FST'] >= thr)].sort_values('BIN_START')
@@ -22,7 +22,6 @@ def analyze_clusters(thr=0.1):
                 curr = [d.iloc[i]]
         if len(curr) > 1: clust.append(pd.DataFrame(curr))
     
-    # 输出结果
     print(f"\n发现{len(clust)}个多基因区域:")
     cluster_records = []
     for i, c in enumerate(clust):
@@ -34,7 +33,6 @@ def analyze_clusters(thr=0.1):
               f"\n长度: {size/1000:.1f}kb, 窗口数: {len(c)}"
               f"\n平均FST: {avg_fst:.3f} (最大: {max_fst:.3f})")
         
-        # 保存到记录中
         cluster_records.append({
             "CHROM": c['CHROM'].iloc[0],
             "BIN_START": c['BIN_START'].iloc[0],
@@ -44,12 +42,10 @@ def analyze_clusters(thr=0.1):
             "MAX_FST": max_fst
         })
     
-    # 保存多基因区域到 CSV 文件
     cluster_df = pd.DataFrame(cluster_records)
     cluster_df.to_csv(base / "vcf_analysis/fst_results/multi_locus_clusters.csv", index=False)
     print("\n多基因区域信息已保存到 'multi_locus_clusters.csv'")
     
-    # 绘图
     plt.figure(figsize=(12, 6))
     cols = plt.cm.Set3(np.linspace(0, 1, len(clust)))
     for c, col in zip(clust, cols):
