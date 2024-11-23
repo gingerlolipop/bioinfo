@@ -3,39 +3,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-def analyze_clusters(threshold=0.1):
+def analyze_clusters(thr=0.1):
     base = Path(r"C:\Users\jillb\OneDrive - UBC\CONS 503A\Assignment")
     df = pd.read_csv(base / "vcf_analysis/fst_results/high_fst_regions.csv")
     
-    clusters = []
-    for chrom in df['CHROM'].unique():
-        chr_data = df[(df['CHROM'] == chrom) & (df['WEIGHTED_FST'] >= threshold)].sort_values('BIN_START')
-        if len(chr_data) == 0: continue
+    # 查找连续高FST区域
+    clust = []
+    for chr in df['CHROM'].unique():
+        d = df[(df['CHROM'] == chr) & (df['WEIGHTED_FST'] >= thr)].sort_values('BIN_START')
+        if len(d) == 0: continue
         
-        curr = [chr_data.iloc[0]]
-        for i in range(1, len(chr_data)):
-            if chr_data.iloc[i]['BIN_START'] - curr[-1]['BIN_END'] <= 50000:
-                curr.append(chr_data.iloc[i])
+        curr = [d.iloc[0]]
+        for i in range(1, len(d)):
+            if d.iloc[i]['BIN_START'] - curr[-1]['BIN_END'] <= 50000:
+                curr.append(d.iloc[i])
             else:
-                if len(curr) > 1: clusters.append(pd.DataFrame(curr))
-                curr = [chr_data.iloc[i]]
-        if len(curr) > 1: clusters.append(pd.DataFrame(curr))
+                if len(curr) > 1: clust.append(pd.DataFrame(curr))
+                curr = [d.iloc[i]]
+        if len(curr) > 1: clust.append(pd.DataFrame(curr))
     
-    print(f"\n找到{len(clusters)}个可能的多基因区域:")
-    for i, c in enumerate(clusters):
+    # 输出结果
+    print(f"\n发现{len(clust)}个多基因区域:")
+    cluster_records = []
+    for i, c in enumerate(clust):
         size = c.iloc[-1]['BIN_END'] - c.iloc[0]['BIN_START']
-        print(f"\n区域{i+1} Chr{c['CHROM'].iloc[0]}:")
-        print(f"位置: {c['BIN_START'].iloc[0]:,}-{c['BIN_END'].iloc[-1]:,}")
-        print(f"长度: {size/1000:.1f}kb, 窗口数: {len(c)}")
-        print(f"平均FST: {c['WEIGHTED_FST'].mean():.3f} (最大: {c['WEIGHTED_FST'].max():.3f})")
+        avg_fst = c['WEIGHTED_FST'].mean()
+        max_fst = c['WEIGHTED_FST'].max()
+        print(f"\n区域{i+1} Chr{c['CHROM'].iloc[0]}:"
+              f"\n位置: {c['BIN_START'].iloc[0]:,}-{c['BIN_END'].iloc[-1]:,}"
+              f"\n长度: {size/1000:.1f}kb, 窗口数: {len(c)}"
+              f"\n平均FST: {avg_fst:.3f} (最大: {max_fst:.3f})")
+        
+        # 保存到记录中
+        cluster_records.append({
+            "CHROM": c['CHROM'].iloc[0],
+            "BIN_START": c['BIN_START'].iloc[0],
+            "BIN_END": c['BIN_END'].iloc[-1],
+            "SIZE_BP": size,
+            "AVG_FST": avg_fst,
+            "MAX_FST": max_fst
+        })
     
+    # 保存多基因区域到 CSV 文件
+    cluster_df = pd.DataFrame(cluster_records)
+    cluster_df.to_csv(base / "vcf_analysis/fst_results/multi_locus_clusters.csv", index=False)
+    print("\n多基因区域信息已保存到 'multi_locus_clusters.csv'")
+    
+    # 绘图
     plt.figure(figsize=(12, 6))
-    colors = plt.cm.Set3(np.linspace(0, 1, len(clusters)))
-    for c, col in zip(clusters, colors):
+    cols = plt.cm.Set3(np.linspace(0, 1, len(clust)))
+    for c, col in zip(clust, cols):
         plt.scatter(c['BIN_START'], c['WEIGHTED_FST'], c=[col], alpha=0.6, s=100,
                    label=f"Chr{c['CHROM'].iloc[0]}: {c['BIN_START'].iloc[0]/1e6:.1f}Mb")
     
-    plt.xlabel('Genomic Position'), plt.ylabel('FST')
+    plt.xlabel('Position (bp)'), plt.ylabel('FST')
     plt.title('Multi-locus FST Clusters')
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.tight_layout()
